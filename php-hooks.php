@@ -8,10 +8,12 @@
  * This class is heavily based on the WordPress plugin API and most (if not all) of the code comes from there.
  * 
  * 
- * @version 0.1.3
+ * @version 0.2
  * @copyright 2012 - 2014
  * @author Ohad Raz (email: admin@bainternet.info)
  * @link http://en.bainternet.info
+ * @author Damien "Mistic" Sorel (email: contact@git.strangeplanet.fr)
+ * @link http://www.strangeplanet.fr
  * 
  * @license GNU General Public LIcense v3.0 - license.txt
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -559,6 +561,3 @@ if (!class_exists('Hooks')){
     }
   }//end class
 }//end if
-global $hooks;
-$hooks = new Hooks();
-$hooks->do_action('After_Hooks_Setup',$hooks);
