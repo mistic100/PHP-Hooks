@@ -94,16 +94,14 @@ class Hooks
    * @param int $priority optional. Used to specify the order in which the functions associated with
    *    a particular action are executed (default: 10). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
-   * @param int $accepted_args optional. The number of arguments the function accept (default 1).
    * @return boolean true
    */
-  public function add_filter($tag, $function_to_add, $priority = 10, $accepted_args = 1)
+  public function add_filter($tag, $function_to_add, $priority = 10)
   {
     $idx = $this->_filter_build_unique_id($tag, $function_to_add, $priority);
 
     $this->filters[$tag][$priority][$idx] = array(
-      'function' => $function_to_add,
-      'accepted_args' => $accepted_args
+      'function' => $function_to_add
       );
 
     unset($this->merged_filters[$tag]);
@@ -119,7 +117,6 @@ class Hooks
    * @param string $tag The filter hook to which the function to be removed is hooked.
    * @param callback $function_to_remove The name of the function which should be removed.
    * @param int $priority optional. The priority of the function (default: 10).
-   * @param int $accepted_args optional. The number of arguments the function accepts (default: 1).
    * @return boolean Whether the function existed before it was removed.
    */
   public function remove_filter($tag, $function_to_remove, $priority = 10)
@@ -266,7 +263,7 @@ class Hooks
         if (!is_null($the_['function']))
         {
           $args[1] = $value;
-          $value = call_user_func_array($the_['function'], array_slice($args, 1, (int)$the_['accepted_args']));
+          $value = call_user_func_array($the_['function'], array_slice($args, 1));
         }
       }
     }
@@ -326,7 +323,7 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
-          $args[0] = call_user_func_array($the_['function'], array_slice($args, 0, (int)$the_['accepted_args']));
+          $args[0] = call_user_func_array($the_['function'], $args);
         }
       }
     }
@@ -353,11 +350,11 @@ class Hooks
    * @param int $priority optional. Used to specify the order in which the functions associated with
    *    a particular action are executed (default: 10). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
-   * @param int $accepted_args optional. The number of arguments the function accept (default 1).
+   * @return boolean true
    */
-  public function add_action($tag, $function_to_add, $priority = 10, $accepted_args = 1)
+  public function add_action($tag, $function_to_add, $priority = 10)
   {
-    return $this->add_filter($tag, $function_to_add, $priority, $accepted_args);
+    return $this->add_filter($tag, $function_to_add, $priority);
   }
 
   /**
@@ -487,7 +484,7 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
-          call_user_func_array($the_['function'], array_slice($args, 0, (int)$the_['accepted_args']));
+          call_user_func_array($the_['function'], $args);
         }
       }
     }
@@ -560,7 +557,7 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
-          call_user_func_array($the_['function'], array_slice($args, 0, (int)$the_['accepted_args']));
+          call_user_func_array($the_['function'], $args);
         }
       }
     }
