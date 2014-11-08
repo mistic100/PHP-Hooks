@@ -1,17 +1,24 @@
 {
-    "name": "bainternet/php-hooks",
+    "name": "mistic100/php-hooks",
     "description": "A fork of the WordPress filters hook system rolled in to a class to be ported into any PHP-based system",
     "keywords": ["hooks", "actions", "filters"],
-    "homepage": "http://bainternet.github.com/PHP-Hooks/",
+    "homepage": "https://github.com/mistic100/PHP-Hooks/",
     "type": "library",
-    "license": "GPL-3.0",
+    "license": "GNU General Public License v3.0",
     "authors": [
         {
             "name": "Ohad Raz",
             "homepage": "http://en.bainternet.info/"
+        },
+        {
+            "name": "Damien \"Mistic\" Sorel",
+            "homepage": "http://www.strangeplanet.fr/"
         }
     ],
     "support": {
-        "issues": "https://github.com/bainternet/PHP-Hooks/issues"
+        "issues": "https://github.com/mistic100/PHP-Hooks/issues/"
+    },
+    "require": {
+        "php": ">=5.3.0"
     }
 }
