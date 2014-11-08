@@ -33,6 +33,14 @@
 class Hooks
 {
   /**
+   * Default priority
+   *
+   * @since 0.2
+   * @const int
+   */
+  const PRIORITY_NEUTRAL = 50;
+
+  /**
    * $filters holds list of hooks
    *
    * @access public
@@ -92,16 +100,18 @@ class Hooks
    * @param string $tag The name of the filter to hook the $function_to_add to.
    * @param callback $function_to_add The name of the function to be called when the filter is applied.
    * @param int $priority optional. Used to specify the order in which the functions associated with
-   *    a particular action are executed (default: 10). Lower numbers correspond with earlier execution,
+   *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
+   * @param string $include_path optional. File to include before executing the callback.
    * @return boolean true
    */
-  public function add_filter($tag, $function_to_add, $priority = 10)
+  public function add_filter($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
   {
     $idx = $this->_filter_build_unique_id($tag, $function_to_add, $priority);
 
     $this->filters[$tag][$priority][$idx] = array(
-      'function' => $function_to_add
+      'function' => $function_to_add,
+      'include_path' => is_string($include_path) ? $include_path : null,
       );
 
     unset($this->merged_filters[$tag]);
@@ -116,10 +126,10 @@ class Hooks
    *
    * @param string $tag The filter hook to which the function to be removed is hooked.
    * @param callback $function_to_remove The name of the function which should be removed.
-   * @param int $priority optional. The priority of the function (default: 10).
+   * @param int $priority optional. The priority of the function (default: 50).
    * @return boolean Whether the function existed before it was removed.
    */
-  public function remove_filter($tag, $function_to_remove, $priority = 10)
+  public function remove_filter($tag, $function_to_remove, $priority = self::PRIORITY_NEUTRAL)
   {
     $function_to_remove = $this->_filter_build_unique_id($tag, $function_to_remove, $priority);
     $r = isset($this->filters[$tag][$priority][$function_to_remove]);
@@ -244,7 +254,7 @@ class Hooks
     }
 
     // Sort
-    if (!isset( $this->merged_filters[$tag]))
+    if (!isset($this->merged_filters[$tag]))
     {
       ksort($this->filters[$tag]);
       $this->merged_filters[$tag] = true;
@@ -257,13 +267,20 @@ class Hooks
       $args = func_get_args();
     }
 
+    array_shift($args);
+
     do {
       foreach (current($this->filters[$tag]) as $the_)
       {
         if (!is_null($the_['function']))
         {
-          $args[1] = $value;
-          $value = call_user_func_array($the_['function'], array_slice($args, 1));
+          if (!is_null($the_['include_path']))
+          {
+            include_once($the_['include_path']);
+          }
+
+          $args[0] = $value;
+          $value = call_user_func_array($the_['function'], $args);
         }
       }
     }
@@ -309,7 +326,7 @@ class Hooks
     }
 
     // Sort
-    if (!isset( $this->merged_filters[$tag]))
+    if (!isset($this->merged_filters[$tag]))
     {
       ksort($this->filters[$tag]);
       $this->merged_filters[$tag] = true;
@@ -323,6 +340,11 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
+          if (!is_null($the_['include_path']))
+          {
+            include_once($the_['include_path']);
+          }
+
           $args[0] = call_user_func_array($the_['function'], $args);
         }
       }
@@ -348,13 +370,14 @@ class Hooks
    * @param string $tag The name of the action to which the $function_to_add is hooked.
    * @param callback $function_to_add The name of the function you wish to be called.
    * @param int $priority optional. Used to specify the order in which the functions associated with
-   *    a particular action are executed (default: 10). Lower numbers correspond with earlier execution,
+   *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
+   * @param string $include_path optional. File to include before executing the callback.
    * @return boolean true
    */
-  public function add_action($tag, $function_to_add, $priority = 10)
+  public function add_action($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
   {
-    return $this->add_filter($tag, $function_to_add, $priority);
+    return $this->add_filter($tag, $function_to_add, $priority, $include_path);
   }
 
   /**
@@ -383,10 +406,10 @@ class Hooks
    *
    * @param string $tag The action hook to which the function to be removed is hooked.
    * @param callback $function_to_remove The name of the function which should be removed.
-   * @param int $priority optional The priority of the function (default: 10).
+   * @param int $priority optional The priority of the function (default: 50).
    * @return boolean Whether the function is removed.
    */
-  public function remove_action($tag, $function_to_remove, $priority = 10)
+  public function remove_action($tag, $function_to_remove, $priority = self::PRIORITY_NEUTRAL)
   {
     return $this->remove_filter($tag, $function_to_remove, $priority);
   }
@@ -484,6 +507,11 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
+          if (!is_null($the_['include_path']))
+          {
+            include_once($the_['include_path']);
+          }
+
           call_user_func_array($the_['function'], $args);
         }
       }
@@ -557,6 +585,11 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
+          if (!is_null($the_['include_path']))
+          {
+            include_once($the_['include_path']);
+          }
+
           call_user_func_array($the_['function'], $args);
         }
       }
@@ -743,6 +776,11 @@ class Hooks
       {
         if (!is_null($the_['function']))
         {
+          if (!is_null($the_['include_path']))
+          {
+            include_once($the_['include_path']);
+          }
+
           call_user_func_array($the_['function'], $args);
         }
       }
