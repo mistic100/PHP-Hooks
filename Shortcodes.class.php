@@ -49,7 +49,7 @@ class Shortcodes
    */
   public $shortcode_tags = array();
 
-  
+
   /**
    * __construct class constructor
    *
@@ -64,13 +64,19 @@ class Shortcodes
     $this->shortcode_tags = array();
   }
 
-  
+
   /**
    * Add hook for shortcode tag.
    *
    * There can only be one hook for each shortcode. Which means that if another
    * plugin has a similar shortcode, it will override yours or yours will override
    * theirs depending on which order the plugins are included and/or ran.
+   *
+   * The $func parameters are:
+   *    - array|string $attrs hashmap of attributes or empty string
+   *    - string|null $content content of the shortcode if any
+   *    - string $tag shortcode name
+   *    - Callable $atts_parser reference to Shortcodes::shortcode_atts method
    *
    * @since 0.1
    * @access public
@@ -129,7 +135,10 @@ class Shortcodes
   }
 
   /**
-   * Whether the passed content contains the specified shortcode
+   * Whether the passed content contains the specified shortcode.
+   *
+   * If the second parameter is ommited, will return true whether the content
+   * has any known shortcode.
    *
    * @since 0.1
    * @access public
@@ -138,7 +147,7 @@ class Shortcodes
    * @param $tag
    * @return bool
    */
-  public function has_shortcode($content, $tag)
+  public function has_shortcode($content, $tag = null)
   {
     if (false === strpos( $content, '[' ))
     {
@@ -149,11 +158,16 @@ class Shortcodes
     {
       return false;
     }
-    
+
     preg_match_all('/' . $this->get_shortcode_regex() . '/s', $content, $matches, PREG_SET_ORDER);
     if (empty($matches))
     {
       return false;
+    }
+
+    if ($tag === null)
+    {
+      return true;
     }
 
     foreach ($matches as $shortcode)
@@ -277,17 +291,9 @@ class Shortcodes
 
     $tag = $m[2];
     $attr = $this->shortcode_parse_atts($m[3]);
+    $func = array($this, 'shortcode_atts');
 
-    if (isset($m[5]))
-    {
-      // enclosing tag - extra parameter
-      return $m[1] . call_user_func($this->shortcode_tags[$tag], $attr, $m[5], $tag) . $m[6];
-    }
-    else
-    {
-      // self-closing tag
-      return $m[1] . call_user_func($this->shortcode_tags[$tag], $attr, null, $tag) . $m[6];
-    }
+    return $m[1] . call_user_func($this->shortcode_tags[$tag], $attr, $m[5], $tag, $func) . $m[6];
   }
 
   /**
@@ -350,14 +356,18 @@ class Shortcodes
    * supported by the caller and given as a list. The returned attributes will
    * only contain the attributes in the $pairs list.
    *
+   * The $pairs value can be the default value or an array with:
+   *    - [0] validation regex or 'boolean'
+   *    - [1] default value
+   *
    * If the $atts list has unsupported attributes, then they will be ignored and
    * removed from the final returned list.
    *
    * If the third parameter is present and an Hooks instance is available, then the
    * filter "shortcode_atts_{$shortcode}" will be applied to the returned list.
-   *    @param array $out   The output array of shortcode attributes.
-   *    @param array $pairs The supported attributes and their defaults.
-   *    @param array $atts  The user defined shortcode attributes.
+   *    - array $out   The output array of shortcode attributes.
+   *    - array $pairs The supported attributes and their defaults.
+   *    - array $atts  The user defined shortcode attributes.
    *
    * @since 0.1
    * @access public
@@ -374,13 +384,43 @@ class Shortcodes
 
     foreach ($pairs as $name => $default)
     {
-      if (array_key_exists($name, $atts))
+      if (is_array($default))
       {
-        $out[$name] = $atts[$name];
+        if (array_key_exists($name, $atts))
+        {
+          $is_bool = ($default[0] === 'boolean') && ($default[0] = '1|0|yes|no|true|false');
+
+          if (preg_match('/'.$default[0].'/', $atts[$name]))
+          {
+            if ($is_bool)
+            {
+              $out[$name] = filter_var($atts[$name], FILTER_VALIDATE_BOOLEAN);
+            }
+            else
+            {
+              $out[$name] = $atts[$name];
+            }
+          }
+          else
+          {
+            $out[$name] = $default[1];
+          }
+        }
+        else
+        {
+          $out[$name] = $default[1];
+        }
       }
       else
       {
-        $out[$name] = $default;
+        if (array_key_exists($name, $atts))
+        {
+          $out[$name] = $atts[$name];
+        }
+        else
+        {
+          $out[$name] = $default;
+        }
       }
     }
 
