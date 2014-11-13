@@ -149,7 +149,7 @@ class Shortcodes
    */
   public function has_shortcode($content, $tag = null)
   {
-    if (false === strpos( $content, '[' ))
+    if (false === strpos($content, '['))
     {
       return false;
     }
@@ -159,7 +159,7 @@ class Shortcodes
       return false;
     }
 
-    preg_match_all('/' . $this->get_shortcode_regex() . '/s', $content, $matches, PREG_SET_ORDER);
+    preg_match_all('/' . $this->__get_shortcode_regex() . '/s', $content, $matches, PREG_SET_ORDER);
     if (empty($matches))
     {
       return false;
@@ -204,13 +204,13 @@ class Shortcodes
       return $content;
     }
 
-    $pattern = $this->get_shortcode_regex();
+    $pattern = $this->__get_shortcode_regex();
     $loop = 0;
 
     do {
       $content = preg_replace_callback(
         "/$pattern/s",
-        array($this, 'do_shortcode_tag'),
+        array($this, '__do_shortcode_tag'),
         $content
       );
 
@@ -241,12 +241,12 @@ class Shortcodes
    *
    * @return string The shortcode search regular expression
    */
-  private function get_shortcode_regex()
+  private function __get_shortcode_regex()
   {
     $tagnames = array_keys($this->shortcode_tags);
     $tagregexp = join('|', array_map('preg_quote', $tagnames));
 
-    // WARNING! Do not change this regex without changing do_shortcode_tag() and strip_shortcode_tag()
+    // WARNING! Do not change this regex without changing __do_shortcode_tag() and __strip_shortcode_tag()
     // Also, see shortcode_unautop() and shortcode.js.
     return
         '\\[' // Opening bracket
@@ -289,7 +289,7 @@ class Shortcodes
    * @param array $m Regular expression match array
    * @return mixed False on failure.
    */
-  private function do_shortcode_tag($m)
+  private function __do_shortcode_tag($m)
   {
     // allow [[foo]] syntax for escaping a tag
     if ($m[1] == '[' && $m[6] == ']')
@@ -298,7 +298,7 @@ class Shortcodes
     }
 
     $tag = $m[2];
-    $attr = $this->shortcode_parse_atts($m[3]);
+    $attr = $this->__shortcode_parse_atts($m[3]);
     $func = array($this, 'shortcode_atts');
 
     return $m[1] . call_user_func($this->shortcode_tags[$tag], $attr, $m[5], $tag, $func) . $m[6];
@@ -317,7 +317,7 @@ class Shortcodes
    * @param string $text
    * @return array List of attributes and their value.
    */
-  private function shortcode_parse_atts($text)
+  private function __shortcode_parse_atts($text)
   {
     $atts = array();
     $pattern = '/(\w+)\s*=\s*"([^"]*)"(?:\s|$)|(\w+)\s*=\s*\'([^\']*)\'(?:\s|$)|(\w+)\s*=\s*([^\s\'"]+)(?:\s|$)|"([^"]*)"(?:\s|$)|(\S+)(?:\s|$)/';
@@ -463,7 +463,7 @@ class Shortcodes
 
     return preg_replace_callback(
       "/$pattern/s",
-      array($this, 'strip_shortcode_tag'),
+      array($this, '__strip_shortcode_tag'),
       $content
     );
   }
@@ -477,7 +477,7 @@ class Shortcodes
    * @param $m
    * @return string
    */
-  private function strip_shortcode_tag($m)
+  private function __strip_shortcode_tag($m)
   {
     // allow [[foo]] syntax for escaping a tag
     if ($m[1] == '[' && $m[6] == ']')

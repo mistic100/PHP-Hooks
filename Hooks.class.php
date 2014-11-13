@@ -10,9 +10,9 @@
  *
  * @version 0.2
  * @copyright 2012 - 2014
- * @author Ohad Raz (email: admin@bainternet.info)
+ * @author Ohad Raz <admin@bainternet.info>
  * @link http://en.bainternet.info
- * @author Damien "Mistic" Sorel (email: contact@git.strangeplanet.fr)
+ * @author Damien "Mistic" Sorel <contact@git.strangeplanet.fr>
  * @link http://www.strangeplanet.fr
  *
  * @license GNU General Public LIcense v3.0 - license.txt
@@ -23,8 +23,6 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- *
- * @package PHP Hooks
  */
 
 /**
@@ -41,7 +39,7 @@ class Hooks
   const PRIORITY_NEUTRAL = 50;
 
   /**
-   * $filters holds list of hooks
+   * Holds list of hooks
    *
    * @access public
    * @since 0.1
@@ -64,7 +62,7 @@ class Hooks
   var $actions = array();
 
   /**
-   * $current_filter  holds the name of the current filter
+   * Holds the name of the current filter
    *
    * @access public
    * @since 0.1
@@ -92,7 +90,7 @@ class Hooks
    */
 
   /**
-   * add_filter Hooks a function or method to a specific filter action.
+   * Hooks a function or method to a specific filter action.
    *
    * @access public
    * @since 0.1
@@ -107,7 +105,7 @@ class Hooks
    */
   public function add_filter($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
   {
-    $idx = $this->_filter_build_unique_id($tag, $function_to_add, $priority);
+    $idx = $this->__filter_build_unique_id($tag, $function_to_add, $priority);
 
     $this->filters[$tag][$priority][$idx] = array(
       'function' => $function_to_add,
@@ -119,7 +117,7 @@ class Hooks
   }
 
   /**
-   * remove_filter Removes a function from a specified filter hook.
+   * Removes a function from a specified filter hook.
    *
    * @access public
    * @since 0.1
@@ -131,7 +129,7 @@ class Hooks
    */
   public function remove_filter($tag, $function_to_remove, $priority = self::PRIORITY_NEUTRAL)
   {
-    $function_to_remove = $this->_filter_build_unique_id($tag, $function_to_remove, $priority);
+    $function_to_remove = $this->__filter_build_unique_id($tag, $function_to_remove, $priority);
     $r = isset($this->filters[$tag][$priority][$function_to_remove]);
 
     if (true === $r)
@@ -148,7 +146,7 @@ class Hooks
   }
 
   /**
-   * remove_all_filters Remove all of the hooks from a filter.
+   * Remove all of the hooks from a filter.
    *
    * @access public
    * @since 0.1
@@ -180,7 +178,7 @@ class Hooks
   }
 
   /**
-   * has_filter  Check if any filter has been registered for a hook.
+   *  Check if any filter has been registered for a hook.
    *
    * @access public
    * @since 0.1
@@ -200,7 +198,7 @@ class Hooks
       return $has;
     }
 
-    if (!$idx = $this->_filter_build_unique_id($tag, $function_to_check, false))
+    if (!$idx = $this->__filter_build_unique_id($tag, $function_to_check, false))
     {
       return false;
     }
@@ -217,7 +215,7 @@ class Hooks
   }
 
   /**
-   * apply_filters Call the functions added to a filter hook.
+   * Call the functions added to a filter hook.
    *
    * @access public
    * @since 0.1
@@ -292,7 +290,7 @@ class Hooks
   }
 
   /**
-   * apply_filters_ref_array Execute functions hooked on a specific filter hook, specifying arguments in an array.
+   * Execute functions hooked on a specific filter hook, specifying arguments in an array.
    *
    * @access public
    * @since 0.1
@@ -362,7 +360,7 @@ class Hooks
    */
 
   /**
-   * add_action Hooks a function on to a specific action.
+   * Hooks a function on to a specific action.
    *
    * @access public
    * @since 0.1
@@ -381,7 +379,7 @@ class Hooks
   }
 
   /**
-   * has_action Check if any action has been registered for a hook.
+   * Check if any action has been registered for a hook.
    *
    * @access public
    * @since 0.1
@@ -399,7 +397,7 @@ class Hooks
   }
 
   /**
-   * remove_action Removes a function from a specified action hook.
+   * Removes a function from a specified action hook.
    *
    * @access public
    * @since 0.1
@@ -415,7 +413,7 @@ class Hooks
   }
 
   /**
-   * remove_all_actions Remove all of the hooks from an action.
+   * Remove all of the hooks from an action.
    *
    * @access public
    * @since 0.1
@@ -430,7 +428,7 @@ class Hooks
   }
 
   /**
-   * do_action Execute functions hooked on a specific action hook.
+   * Execute functions hooked on a specific action hook.
    *
    * @access public
    * @since 0.1
@@ -522,7 +520,7 @@ class Hooks
   }
 
   /**
-   * do_action_ref_array Execute functions hooked on a specific action hook, specifying arguments in an array.
+   * Execute functions hooked on a specific action hook, specifying arguments in an array.
    *
    * @access public
    * @since 0.1
@@ -600,7 +598,7 @@ class Hooks
   }
 
   /**
-   * did_action Retrieve the number of times an action is fired.
+   * Retrieve the number of times an action is fired.
    *
    * @access public
    * @since 0.1
@@ -624,7 +622,7 @@ class Hooks
    */
 
   /**
-   * current_filter Retrieve the name of the current filter or action.
+   * Retrieve the name of the current filter or action.
    *
    * @access public
    * @since 0.1
@@ -666,7 +664,7 @@ class Hooks
    *                            checks if any filter is currently being run.
    * @return bool Whether the filter is currently in the stack
    */
-  function doing_filter($filter = null)
+  public function doing_filter($filter = null)
   {
     if (null === $filter)
     {
@@ -692,7 +690,7 @@ class Hooks
   }
 
   /**
-   * _filter_build_unique_id Build Unique ID for storage and retrieval.
+   * Build Unique ID for storage and retrieval.
    *
    * @since 0.1
    * @access private
@@ -704,7 +702,7 @@ class Hooks
    * @return string|bool Unique ID for usage as array key or false if $priority === false and $function
    *    is an object reference, and it does not already have a unique id.
    */
-  private function _filter_build_unique_id($tag, $function, $priority)
+  private function __filter_build_unique_id($tag, $function, $priority)
   {
     static $filter_id_count = 0;
 
@@ -762,8 +760,10 @@ class Hooks
 
   /**
    * __call_all_hook
+   *
    * @access private
    * @since 0.1
+   *
    * @param (array) $args [description]
    */
   private function __call_all_hook($args)
