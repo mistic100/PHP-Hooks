@@ -154,7 +154,7 @@ class Shortcodes
       return false;
     }
 
-    if (!$this->shortcode_exists($tag))
+    if ($tag !== null && !$this->shortcode_exists($tag))
     {
       return false;
     }
@@ -205,12 +205,20 @@ class Shortcodes
     }
 
     $pattern = $this->get_shortcode_regex();
+    $loop = 0;
 
-    return preg_replace_callback(
-      "/$pattern/s",
-      array($this, 'do_shortcode_tag'),
-      $content
-    );
+    do {
+      $content = preg_replace_callback(
+        "/$pattern/s",
+        array($this, 'do_shortcode_tag'),
+        $content
+      );
+
+      $loop++;
+    }
+    while ($loop<10 && $this->has_shortcode($content));
+
+    return $content;
   }
 
   /**
