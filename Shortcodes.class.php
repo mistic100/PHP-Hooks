@@ -9,7 +9,7 @@
  * This class is heavily based on the WordPress plugin API and most (if not all) of the code comes from there.
  *
  *
- * @version 0.2
+ * @version 0.3
  * @copyright 2011 - 2014
  * @author Lars Moelleken <lars@moelleken.org>
  * @link https://github.com/voku/PHP-Hooks
@@ -32,22 +32,23 @@
 class Shortcodes
 {
   /**
-   * Hooks object attached to this instance
-   *
-   * @since 0.2
-   * @name $hooks
-   * @var Hooks
-   */
-  public $hooks = null;
-
-  /**
    * Container for storing shortcode tags and their hook to call for the shortcode
    *
    * @since 0.1
-   * @name $shortcode_tags
    * @var array
    */
   public $shortcode_tags = array();
+
+  /**
+   * List a flags useable for validation
+   *
+   * @since 0.3
+   * @var array
+   */
+  static $validation_flags = array(
+    FILTER_VALIDATE_BOOLEAN, FILTER_VALIDATE_EMAIL, FILTER_VALIDATE_FLOAT,
+    FILTER_VALIDATE_INT, FILTER_VALIDATE_IP, FILTER_VALIDATE_URL
+    );
 
 
   /**
@@ -55,12 +56,9 @@ class Shortcodes
    *
    * @access public
    * @since 0.1
-   *
-   * @param Hooks $hooks optional
    */
-  public function __construct($hooks = null)
+  public function __construct()
   {
-    $this->hooks = $hooks;
     $this->shortcode_tags = array();
   }
 
@@ -73,7 +71,7 @@ class Shortcodes
    * theirs depending on which order the plugins are included and/or ran.
    *
    * The $func parameters are:
-   *    - array|string $attrs hashmap of attributes or empty string
+   *    - array $attrs hashmap of attributes
    *    - string|null $content content of the shortcode if any
    *    - string $tag shortcode name
    *    - Callable $atts_parser reference to Shortcodes::shortcode_atts method
@@ -81,15 +79,16 @@ class Shortcodes
    * @since 0.1
    * @access public
    *
-   * @param string   $tag  Shortcode tag to be searched in post content.
-   * @param callable $func Hook to run when shortcode is found.
+   * @param string   $tag                   Shortcode tag to be searched in content.
+   * @param callable $function              Hook to run when shortcode is found.
+   * @param string   $include_path optional File to include before executing the callback.
    */
-  public function add_shortcode($tag, $func)
+  public function add_shortcode($tag, $function, $include_path = null)
   {
-    if (is_callable($func))
-    {
-      $this->shortcode_tags[$tag] = $func;
-    }
+    $this->shortcode_tags[$tag] = array(
+      'function' => $function,
+      'include_path' => is_string($include_path) ? $include_path : null,
+      );
   }
 
   /**
@@ -108,10 +107,6 @@ class Shortcodes
   /**
    * Clear all shortcodes.
    *
-   * This function is simple, it clears all of the shortcode tags by replacing the
-   * shortcodes by a empty array. This is actually a very efficient method
-   * for removing all shortcodes.
-   *
    * @since 0.1
    * @access public
    */
@@ -126,7 +121,7 @@ class Shortcodes
    * @since 0.1
    * @access public
    *
-   * @param string $tag
+   * @param string $tag Shortcode tag to be searched in known codes.
    * @return boolean
    */
   public function shortcode_exists($tag)
@@ -143,8 +138,8 @@ class Shortcodes
    * @since 0.1
    * @access public
    *
-   * @param $content
-   * @param $tag
+   * @param string $content Content to search for shortcodes.
+   * @param string $tag     Optional. Shortcode tag to be searched in content.
    * @return bool
    */
   public function has_shortcode($content, $tag = null)
@@ -194,17 +189,18 @@ class Shortcodes
    * @since 0.1
    * @access public
    *
-   * @param string $content Content to search for shortcodes
+   * @param string          $content Content to search for shortcodes.
+   * @param string|string[] $tag     Optional. Shortcodes to parse.
    * @return string Content with shortcodes filtered out.
    */
-  public function do_shortcode($content)
+  public function do_shortcode($content, $tag = null)
   {
-    if (empty($this->shortcode_tags) || !is_array($this->shortcode_tags))
+    if (empty($this->shortcode_tags))
     {
       return $content;
     }
 
-    $pattern = $this->__get_shortcode_regex();
+    $pattern = $this->__get_shortcode_regex($tag);
     $loop = 0;
 
     do {
@@ -239,15 +235,23 @@ class Shortcodes
    * @since 0.1
    * @access private
    *
-   * @return string The shortcode search regular expression
+   * @param string|string[] $tagnames Optional. Shortcodes to parse.
+   * @return string The shortcode search regular expression.
    */
-  private function __get_shortcode_regex()
+  private function __get_shortcode_regex($tagnames = null)
   {
-    $tagnames = array_keys($this->shortcode_tags);
+    if ($tagnames === null)
+    {
+      $tagnames = array_keys($this->shortcode_tags);
+    }
+    else if (!is_array($tagnames))
+    {
+      $tagnames = array($tagnames);
+    }
+
     $tagregexp = join('|', array_map('preg_quote', $tagnames));
 
     // WARNING! Do not change this regex without changing __do_shortcode_tag() and __strip_shortcode_tag()
-    // Also, see shortcode_unautop() and shortcode.js.
     return
         '\\[' // Opening bracket
         . '(\\[?)' // 1: Optional second opening bracket for escaping shortcodes: [[tag]]
@@ -286,8 +290,8 @@ class Shortcodes
    * @since  0.1
    * @access private
    *
-   * @param array $m Regular expression match array
-   * @return mixed False on failure.
+   * @param array $m Regular expression match array.
+   * @return string
    */
   private function __do_shortcode_tag($m)
   {
@@ -298,10 +302,16 @@ class Shortcodes
     }
 
     $tag = $m[2];
-    $attr = $this->__shortcode_parse_atts($m[3]);
-    $func = array($this, 'shortcode_atts');
+    $the_ = $this->shortcode_tags[$tag];
+    $attrs = $this->__shortcode_parse_atts($m[3]);
+    $parser = array($this, 'shortcode_atts');
 
-    return $m[1] . call_user_func($this->shortcode_tags[$tag], $attr, $m[5], $tag, $func) . $m[6];
+    if (!is_null($the_['include_path']))
+    {
+      include_once($the_['include_path']);
+    }
+
+    return $m[1] . call_user_func($the_['function'], $attrs, $m[5], $tag, $parser) . $m[6];
   }
 
   /**
@@ -314,7 +324,7 @@ class Shortcodes
    * @since 0.1
    * @access private
    *
-   * @param string $text
+   * @param string $text Text block of all attributes.
    * @return array List of attributes and their value.
    */
   private function __shortcode_parse_atts($text)
@@ -351,7 +361,7 @@ class Shortcodes
     }
     else
     {
-      $atts = ltrim($text);
+      $atts = array();
     }
 
     return $atts;
@@ -365,53 +375,42 @@ class Shortcodes
    * only contain the attributes in the $pairs list.
    *
    * The $pairs value can be the default value or an array with:
-   *    - [0] validation regex or 'boolean'
+   *    - [0] validation regex or `filter_var` flag
    *    - [1] default value
    *
    * If the $atts list has unsupported attributes, then they will be ignored and
    * removed from the final returned list.
    *
-   * If the third parameter is present and an Hooks instance is available, then the
-   * filter "shortcode_atts_{$shortcode}" will be applied to the returned list.
-   *    - array $out   The output array of shortcode attributes.
-   *    - array $pairs The supported attributes and their defaults.
-   *    - array $atts  The user defined shortcode attributes.
-   *
    * @since 0.1
    * @access public
    *
-   * @param array  $pairs     Entire list of supported attributes and their defaults.
-   * @param array  $atts      User defined attributes in shortcode tag.
-   * @param string $shortcode Optional. The name of the shortcode, provided for context to enable filtering
+   * @param array $pairs Entire list of supported attributes and their defaults.
+   * @param array $atts  User defined attributes in shortcode tag.
    * @return array Combined and filtered attribute list.
    */
-  public function shortcode_atts($pairs, $atts, $shortcode = null)
+  public function shortcode_atts($pairs, $atts)
   {
-    $atts = (array)$atts;
     $out = array();
 
     foreach ($pairs as $name => $default)
     {
-      if (is_array($default))
+      if (is_int($name))
+      {
+        $out[$default] = in_array($default, $atts);
+      }
+      else if (is_array($default))
       {
         if (array_key_exists($name, $atts))
         {
-          $is_bool = ($default[0] === 'boolean') && ($default[0] = '1|0|yes|no|true|false');
-
-          if (preg_match('/'.$default[0].'/', $atts[$name]))
+          if (in_array($default[0], self::$validation_flags))
           {
-            if ($is_bool)
-            {
-              $out[$name] = filter_var($atts[$name], FILTER_VALIDATE_BOOLEAN);
-            }
-            else
-            {
-              $out[$name] = $atts[$name];
-            }
+            $options = array('options' => array('default' => $default[1]));
+            $out[$name] = filter_var($atts[$name], $default[0], $options);
           }
           else
           {
-            $out[$name] = $default[1];
+            $options = array('options' => array('default' => $default[1], 'regexp' => $default[0]));
+            $out[$name] = filter_var($atts[$name], FILTER_VALIDATE_REGEXP, $options);
           }
         }
         else
@@ -430,14 +429,6 @@ class Shortcodes
           $out[$name] = $default;
         }
       }
-    }
-
-    if ($shortcode != null && $this->hooks != null)
-    {
-      $out = $this->hooks->apply_filters(
-        "shortcode_atts_$shortcode",
-        $out, $pairs, $atts
-      );
     }
 
     return $out;
@@ -469,7 +460,7 @@ class Shortcodes
   }
 
   /**
-   * strip shortcode tag
+   * Strip shortcode tag
    *
    * @since 0.1
    * @access private
