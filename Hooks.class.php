@@ -8,7 +8,7 @@
  * This class is heavily based on the WordPress plugin API and most (if not all) of the code comes from there.
  *
  *
- * @version 0.2
+ * @version 0.3
  * @copyright 2012 - 2014
  * @author Ohad Raz <admin@bainternet.info>
  * @link http://en.bainternet.info
@@ -41,7 +41,6 @@ class Hooks
   /**
    * Holds list of hooks
    *
-   * @access public
    * @since 0.1
    * @var array
    */
@@ -50,25 +49,26 @@ class Hooks
   /**
    * $merged_filters
    *
+   * @since 0.1
    * @var array
    */
   var $merged_filters = array();
 
   /**
-   * $actions
+   * Holds the hit counters of each action
    *
-   * @var array
-   */
-  var $actions = array();
-
-  /**
-   * Holds the name of the current filter
-   *
-   * @access public
    * @since 0.1
    * @var array
    */
-  var $current_filter = array();
+  var $actions_hits = array();
+
+  /**
+   * Holds the call stack of filters
+   *
+   * @since 0.1
+   * @var array
+   */
+  var $filters_stack = array();
 
 
   /**
@@ -80,8 +80,8 @@ class Hooks
   {
     $this->filters = array();
     $this->merged_filters = array();
-    $this->actions = array();
-    $this->current_filter = array();
+    $this->actions_hits = array();
+    $this->filters_stack = array();
   }
 
 
@@ -95,12 +95,12 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the filter to hook the $function_to_add to.
+   * @param string   $tag             The name of the filter to hook the $function_to_add to.
    * @param callback $function_to_add The name of the function to be called when the filter is applied.
-   * @param int $priority optional. Used to specify the order in which the functions associated with
+   * @param int      $priority        Optional. Used to specify the order in which the functions associated with
    *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
-   * @param string $include_path optional. File to include before executing the callback.
+   * @param string   $include_path    Optional. File to include before executing the callback.
    * @return boolean true
    */
   public function add_filter($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
@@ -122,9 +122,9 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The filter hook to which the function to be removed is hooked.
+   * @param string   $tag                The filter hook to which the function to be removed is hooked.
    * @param callback $function_to_remove The name of the function which should be removed.
-   * @param int $priority optional. The priority of the function (default: 50).
+   * @param int      $priority           Optional. The priority of the function (default: 50).
    * @return boolean Whether the function existed before it was removed.
    */
   public function remove_filter($tag, $function_to_remove, $priority = self::PRIORITY_NEUTRAL)
@@ -151,9 +151,8 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The filter to remove hooks from.
-   * @param int $priority The priority number to remove.
-   * @return bool True when finished.
+   * @param string $tag      The filter to remove hooks from.
+   * @param int    $priority The priority number to remove.
    */
   public function remove_all_filters($tag, $priority = false)
   {
@@ -173,8 +172,6 @@ class Hooks
     {
       unset($this->merged_filters[$tag]);
     }
-
-    return true;
   }
 
   /**
@@ -183,17 +180,17 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the filter hook.
-   * @param callback $function_to_check optional.
+   * @param string   $tag               The name of the filter hook.
+   * @param callback $function_to_check Optional.
    * @return mixed If $function_to_check is omitted, returns boolean for whether the hook has anything registered.
    *   When checking a specific function, the priority of that hook is returned, or false if the function is not attached.
    *   When using the $function_to_check argument, this function may return a non-boolean value that evaluates to false
    *   (e.g.) 0, so use the === operator for testing the return value.
    */
-  public function has_filter($tag, $function_to_check = false)
+  public function has_filter($tag, $function_to_check = null)
   {
     $has = !empty($this->filters[$tag]);
-    if (false === $function_to_check || false == $has)
+    if ($function_to_check === null)
     {
       return $has;
     }
@@ -220,51 +217,21 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the filter hook.
-   * @param mixed $value The value on which the filters hooked to <tt>$tag</tt> are applied on.
-   * @param mixed $var,... Additional variables passed to the functions hooked to <tt>$tag</tt>.
+   * @param string $tag     The name of the filter hook.
+   * @param mixed  $value   The value on which the filters hooked to <tt>$tag</tt> are applied on.
+   * @param mixed  $arg,... Additional variables passed to the functions hooked to <tt>$tag</tt>.
    * @return mixed The filtered value after all hooked functions are applied to it.
    */
   public function apply_filters($tag, $value)
   {
-    $args = array();
-
-    // Do 'all' actions first
-    if (isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-      $args = func_get_args();
-      $this->_call_all_hook($args);
-    }
-
     if (!isset($this->filters[$tag]))
     {
-      if (isset($this->filters['all']))
-      {
-        array_pop($this->current_filter);
-      }
       return $value;
     }
 
-    if (!isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-    }
+    $this->__bump_action($tag);
 
-    // Sort
-    if (!isset($this->merged_filters[$tag]))
-    {
-      ksort($this->filters[$tag]);
-      $this->merged_filters[$tag] = true;
-    }
-
-    reset($this->filters[$tag]);
-
-    if (empty($args))
-    {
-      $args = func_get_args();
-    }
-
+    $args = func_get_args();
     array_shift($args);
 
     do {
@@ -284,7 +251,7 @@ class Hooks
     }
     while (next($this->filters[$tag]) !== false);
 
-    array_pop($this->current_filter);
+    array_pop($this->filters_stack);
 
     return $value;
   }
@@ -295,42 +262,18 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the filter hook.
-   * @param array $args The arguments supplied to the functions hooked to <tt>$tag</tt>
+   * @param string $tag  The name of the filter hook.
+   * @param array  $args The arguments supplied to the functions hooked to <tt>$tag</tt>
    * @return mixed The filtered value after all hooked functions are applied to it.
    */
   public function apply_filters_ref_array($tag, $args)
   {
-    // Do 'all' actions first
-    if (isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-      $all_args = func_get_args();
-      $this->_call_all_hook($all_args);
-    }
-
     if (!isset($this->filters[$tag]))
     {
-      if (isset($this->filters['all']))
-      {
-        array_pop($this->current_filter);
-      }
       return $args[0];
     }
 
-    if (!isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-    }
-
-    // Sort
-    if (!isset($this->merged_filters[$tag]))
-    {
-      ksort($this->filters[$tag]);
-      $this->merged_filters[$tag] = true;
-    }
-
-    reset($this->filters[$tag]);
+    $this->__bump_action($tag);
 
     do
     {
@@ -349,7 +292,7 @@ class Hooks
     }
     while (next($this->filters[$tag]) !== false);
 
-    array_pop( $this->current_filter );
+    array_pop($this->filters_stack);
 
     return $args[0];
   }
@@ -365,12 +308,12 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the action to which the $function_to_add is hooked.
+   * @param string   $tag             The name of the action to which the $function_to_add is hooked.
    * @param callback $function_to_add The name of the function you wish to be called.
-   * @param int $priority optional. Used to specify the order in which the functions associated with
+   * @param int      $priority        Optional. Used to specify the order in which the functions associated with
    *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
-   * @param string $include_path optional. File to include before executing the callback.
+   * @param string   $include_path    Optional. File to include before executing the callback.
    * @return boolean true
    */
   public function add_action($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
@@ -384,8 +327,8 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the action hook.
-   * @param callback $function_to_check optional.
+   * @param string   $tag               The name of the action hook.
+   * @param callback $function_to_check Optional.
    * @return mixed If $function_to_check is omitted, returns boolean for whether the hook has anything registered.
    *   When checking a specific function, the priority of that hook is returned, or false if the function is not attached.
    *   When using the $function_to_check argument, this function may return a non-boolean value that evaluates to false
@@ -402,9 +345,9 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The action hook to which the function to be removed is hooked.
+   * @param string   $tag                The action hook to which the function to be removed is hooked.
    * @param callback $function_to_remove The name of the function which should be removed.
-   * @param int $priority optional The priority of the function (default: 50).
+   * @param int      $priority           Optional. The priority of the function (default: 50).
    * @return boolean Whether the function is removed.
    */
   public function remove_action($tag, $function_to_remove, $priority = self::PRIORITY_NEUTRAL)
@@ -418,8 +361,8 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The action to remove hooks from.
-   * @param int $priority The priority number to remove them from.
+   * @param string $tag      The action to remove hooks from.
+   * @param int    $priority The priority number to remove them from.
    * @return bool True when finished.
    */
   public function remove_all_actions($tag, $priority = false)
@@ -433,71 +376,21 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @param string $tag The name of the action to be executed.
-   * @param mixed $arg,... Optional additional arguments which are passed on to the functions hooked to the action.
+   * @param string $tag     The name of the action to be executed.
+   * @param mixed  $arg,... Optional additional arguments which are passed on to the functions hooked to the action.
    * @return null Will return null if $tag does not exist in $filter array
    */
-  public function do_action($tag, $arg = '')
+  public function do_action($tag)
   {
-
-    if (!isset($this->actions))
-    {
-      $this->actions = array();
-    }
-
-    if (!isset($this->actions[$tag]))
-    {
-      $this->actions[$tag] = 1;
-    }
-    else
-    {
-      ++$this->actions[$tag];
-    }
-
-    // Do 'all' actions first
-    if (isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-      $all_args = func_get_args();
-      $this->_call_all_hook($all_args);
-    }
-
     if (!isset($this->filters[$tag]))
     {
-      if (isset($this->filters['all']))
-      {
-        array_pop($this->current_filter);
-      }
       return;
     }
 
-    if (!isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-    }
+    $this->__bump_action($tag);
 
-    $args = array();
-    if (is_array($arg) && 1 == count($arg) && isset($arg[0]) && is_object($arg[0]))
-    {
-      $args[] =& $arg[0];
-    }
-    else
-    {
-      $args[] = $arg;
-    }
-    for ($a = 2; $a < func_num_args(); $a++)
-    {
-      $args[] = func_get_arg($a);
-    }
-
-    // Sort
-    if (!isset( $this->merged_filters[$tag]))
-    {
-      ksort($this->filters[$tag]);
-      $this->merged_filters[$tag] = true;
-    }
-
-    reset($this->filters[$tag]);
+    $args = func_get_args();
+    array_shift($args);
 
     do
     {
@@ -516,7 +409,7 @@ class Hooks
     }
     while (next($this->filters[$tag]) !== false);
 
-    array_pop($this->current_filter);
+    array_pop($this->filters_stack);
   }
 
   /**
@@ -531,51 +424,12 @@ class Hooks
    */
   public function do_action_ref_array($tag, $args)
   {
-
-    if (!isset($this->actions))
-    {
-      $this->actions = array();
-    }
-
-    if (!isset($this->actions[$tag]))
-    {
-      $this->actions[$tag] = 1;
-    }
-    else
-    {
-      ++$this->actions[$tag];
-    }
-
-    // Do 'all' actions first
-    if (isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-      $all_args = func_get_args();
-      $this->_call_all_hook($all_args);
-    }
-
     if (!isset($this->filters[$tag]))
     {
-      if (isset($this->filters['all']))
-      {
-        array_pop($this->current_filter);
-      }
       return;
     }
 
-    if (!isset($this->filters['all']))
-    {
-      $this->current_filter[] = $tag;
-    }
-
-    // Sort
-    if (!isset($merged_filters[$tag]))
-    {
-      ksort($this->filters[$tag]);
-      $merged_filters[$tag] = true;
-    }
-
-    reset($this->filters[$tag]);
+    $this->__bump_action($tag);
 
     do
     {
@@ -594,26 +448,7 @@ class Hooks
     }
     while (next($this->filters[$tag]) !== false);
 
-    array_pop($this->current_filter);
-  }
-
-  /**
-   * Retrieve the number of times an action is fired.
-   *
-   * @access public
-   * @since 0.1
-   *
-   * @param string $tag The name of the action hook.
-   * @return int The number of times action hook <tt>$tag</tt> is fired
-   */
-  public function did_action($tag)
-  {
-    if (!isset($this->actions) || !isset($this->actions[$tag]))
-    {
-      return 0;
-    }
-
-    return $this->actions[$tag];
+    array_pop($this->filters_stack);
   }
 
 
@@ -631,7 +466,7 @@ class Hooks
    */
   public function current_filter()
   {
-    return end($this->current_filter);
+    return end($this->filters_stack);
   }
 
   /**
@@ -668,10 +503,10 @@ class Hooks
   {
     if (null === $filter)
     {
-      return !empty($this->current_filter);
+      return !empty($this->filters_stack);
     }
 
-    return in_array($filter, $this->current_filter);
+    return in_array($filter, $this->filters_stack);
   }
 
   /**
@@ -690,12 +525,45 @@ class Hooks
   }
 
   /**
+   * Retrieve the number of times an filter was used.
+   *
+   * @access public
+   * @since 0.3
+   *
+   * @param string $tag The name of the filter hook.
+   * @return int The number of times action hook <tt>$tag</tt> is fired
+   */
+  public function did_filter($tag)
+  {
+    if (!isset($this->actions_hits[$tag]))
+    {
+      return 0;
+    }
+
+    return $this->actions_hits[$tag];
+  }
+
+  /**
+   * Retrieve the number of times an action is fired.
+   *
+   * @access public
+   * @since 0.1
+   *
+   * @param string $tag The name of the action hook.
+   * @return int The number of times action hook <tt>$tag</tt> is fired
+   */
+  public function did_action($tag)
+  {
+    return $this->did_filter($tag);
+  }
+
+  /**
    * Build Unique ID for storage and retrieval.
    *
    * @since 0.1
    * @access private
    *
-   * @param string $tag Used in counting how many hooks were applied
+   * @param string   $tag      Used in counting how many hooks were applied
    * @param callback $function Used for creating unique id
    * @param int|bool $priority Used in counting how many hooks were applied. If === false and $function
    *    is an object reference, we return the unique id only if it already has one, false otherwise.
@@ -759,33 +627,36 @@ class Hooks
   }
 
   /**
-   * __call_all_hook
+   * Common script before running an action or applying a filter:
+   *    - increase hits count
+   *    - add to stack
+   *    - filter hooks by priority
    *
+   * @since 0.3
    * @access private
-   * @since 0.1
    *
-   * @param (array) $args [description]
+   * @param string $tag
    */
-  private function __call_all_hook($args)
+  private function __bump_action($tag)
   {
-    reset($this->filters['all']);
-
-    do
+    if (!isset($this->actions_hits[$tag]))
     {
-      foreach (current($this->filters['all']) as $the_)
-      {
-        if (!is_null($the_['function']))
-        {
-          if (!is_null($the_['include_path']))
-          {
-            include_once($the_['include_path']);
-          }
-
-          call_user_func_array($the_['function'], $args);
-        }
-      }
+      $this->actions_hits[$tag] = 1;
     }
-    while (next($this->filters['all']) !== false);
+    else
+    {
+      ++$this->actions_hits[$tag];
+    }
+
+    $this->filters_stack[] = $tag;
+
+    if (!isset($this->merged_filters[$tag]))
+    {
+      ksort($this->filters[$tag]);
+      $this->merged_filters[$tag] = true;
+    }
+
+    reset($this->filters[$tag]);
   }
 
 }
