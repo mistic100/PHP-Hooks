@@ -64,7 +64,7 @@ class Shortcodes
 
 
   /**
-   * Add hook for shortcode tag.
+   * Add hook for one or multiple shortcode tags. All provided tags will be parsed with the same function.
    *
    * There can only be one hook for each shortcode. Which means that if another
    * plugin has a similar shortcode, it will override yours or yours will override
@@ -79,16 +79,24 @@ class Shortcodes
    * @since 0.1
    * @access public
    *
-   * @param string   $tag                   Shortcode tag to be searched in content.
-   * @param callable $function              Hook to run when shortcode is found.
-   * @param string   $include_path optional File to include before executing the callback.
+   * @param string|string[] $tags         Shortcode tag(s) to be searched in content.
+   * @param callable        $function     Hook to run when shortcode is found.
+   * @param string          $include_path Optional. File to include before executing the callback.
    */
-  public function add_shortcode($tag, $function, $include_path = null)
+  public function add_shortcode($tags, $function, $include_path = null)
   {
-    $this->shortcode_tags[$tag] = array(
-      'function' => $function,
-      'include_path' => is_string($include_path) ? $include_path : null,
-      );
+    if (!is_array($tags))
+    {
+      $tags = array($tags);
+    }
+
+    foreach ($tags as $tag)
+    {
+      $this->shortcode_tags[$tag] = array(
+        'function' => $function,
+        'include_path' => is_string($include_path) ? $include_path : null,
+        );
+    }
   }
 
   /**
@@ -330,10 +338,44 @@ class Shortcodes
   private function __shortcode_parse_atts($text)
   {
     $atts = array();
-    $pattern = '/(\w+)\s*=\s*"([^"]*)"(?:\s|$)|(\w+)\s*=\s*\'([^\']*)\'(?:\s|$)|(\w+)\s*=\s*([^\s\'"]+)(?:\s|$)|"([^"]*)"(?:\s|$)|(\S+)(?:\s|$)/';
+
     $text = preg_replace("/[\x{00a0}\x{200b}]+/u", " ", $text);
 
-    if (preg_match_all($pattern, $text, $match, PREG_SET_ORDER))
+    $pattern = 
+      // named attr double quoted
+      '(\w+)' // 1: attr name
+      . '\s*=\s*"' // equal sign and double quote
+      . '([^"]*)' // 2: attr value
+      . '"(?:\s|$)' // double and white space or end of string
+      . '|'
+      // named attr single quoted
+      . '(\w+)' // 3: attr name
+      . '\s*=\s*\'' // equal sign and single quote
+      . '([^\']*)' // 4: attr value
+      . '\'(?:\s|$)' // single quote and white space or end of string
+      . '|'
+      // named attr with no quote
+      . '(\w+)' // 5: attr name
+      . '\s*=\s*' // equal sign
+      . '([^\s\'"]+)' // 6: attr value
+      . '(?:\s|$)' // white space or end of string
+      . '|'
+      // unnamed attr double quoted
+      . '=?"' // optional equals sign and double quote
+      . '([^"]*)' // 7: attr value
+      . '"(?:\s|$)' // double quote and white space or end of string
+      . '|'
+      // unnamed attr single quoted
+      . '=?\'' // optional equals sign and single quote
+      . '([^\']*)' // 8: attr value
+      . '\'(?:\s|$)' // single quote and white space or end of string
+      . '|'
+      // unnamed attr with no quote
+      . '=?' // optional equals sign
+      . '(\S+)' // 9: attr value
+      . '(?:\s|$)'; // white space or end of string
+
+    if (preg_match_all("/$pattern/", $text, $match, PREG_SET_ORDER))
     {
       foreach ($match as $m)
       {
@@ -353,9 +395,13 @@ class Shortcodes
         {
           $atts[] = stripcslashes($m[7]);
         }
-        elseif (isset($m[8]))
+        elseif (isset($m[8]) and strlen($m[8]))
         {
           $atts[] = stripcslashes($m[8]);
+        }
+        elseif (isset($m[9]))
+        {
+          $atts[] = stripcslashes($m[9]);
         }
       }
     }
