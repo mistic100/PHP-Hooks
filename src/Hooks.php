@@ -25,6 +25,8 @@
  * THE SOFTWARE.
  */
 
+namespace Hooks;
+
 /**
  * Hooks
  */

@@ -26,6 +26,8 @@
  * THE SOFTWARE.
  */
 
+namespace Hooks;
+
 /**
  * Shortcodes
  */

@@ -1,6 +1,5 @@
 <?php
 
-include '../../Shortcodes.class.php';
 include 'BBCodeParser.class.php';
 
 $bbcode = new BBCodeParser();
