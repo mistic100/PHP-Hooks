@@ -3,7 +3,13 @@ PHP Hooks & Shortcodes
 
 The WordPress hooks and shortcodes system rolled in two classes to be ported into any php based system.
 
+## Installation (composer)
 
-## How to Use?
+```json
+"mistic100/php-hooks": "dev-master"
+```
 
-Read the wiki about [Hooks](https://github.com/mistic100/PHP-Hooks/wiki/Hooks) and [Shortcodes](https://github.com/mistic100/PHP-Hooks/wiki/Shortcodes).
+## Usage
+
+### [→ Hooks](https://github.com/mistic100/PHP-Hooks/wiki/Hooks)
+### [→ Shortcodes](https://github.com/mistic100/PHP-Hooks/wiki/Shortcodes)
