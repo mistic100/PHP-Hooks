@@ -8,7 +8,7 @@
  * This class is heavily based on the WordPress plugin API and most (if not all) of the code comes from there.
  *
  *
- * @version 0.3
+ * @version 0.4
  * @copyright 2012 - 2014
  * @author Ohad Raz <admin@bainternet.info>
  * @link http://en.bainternet.info
@@ -63,7 +63,7 @@ class Hooks
    * @var array
    */
   var $filters_stack = array();
-  
+
   /**
    * Options
    *
@@ -106,15 +106,25 @@ class Hooks
    *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
    * @param string   $include_path    Optional. File to include before executing the callback.
+   * @param boolean  $enabled         Optional. State of the callback.
    * @return boolean true
    */
-  public function add_filter($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
+  public function add_filter($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null, $enabled = true)
   {
     $idx = $this->__filter_build_unique_id($tag, $function_to_add, $priority);
 
-    $this->filters[$tag][$priority][$idx] = array(
+    if (!isset($this->filters[$tag]))
+    {
+      $this->filters[$tag] = array(
+        'enabled' => true,
+        '_' => array(),
+        );
+    }
+
+    $this->filters[$tag]['_'][$priority][$idx] = array(
       'function' => $function_to_add,
       'include_path' => is_string($include_path) ? $include_path : null,
+      'enabled' => $enabled
       );
 
     return true;
@@ -134,14 +144,14 @@ class Hooks
   public function remove_filter($tag, $function_to_remove, $priority = self::PRIORITY_NEUTRAL)
   {
     $function_to_remove = $this->__filter_build_unique_id($tag, $function_to_remove, $priority);
-    $r = isset($this->filters[$tag][$priority][$function_to_remove]);
+    $r = isset($this->filters[$tag]['_'][$priority][$function_to_remove]);
 
     if (true === $r)
     {
-      unset($this->filters[$tag][$priority][$function_to_remove]);
-      if (empty($this->filters[$tag][$priority]))
+      unset($this->filters[$tag]['_'][$priority][$function_to_remove]);
+      if (empty($this->filters[$tag]['_'][$priority]))
       {
-        unset($this->filters[$tag][$priority]);
+        unset($this->filters[$tag]['_'][$priority]);
       }
     }
 
@@ -161,9 +171,16 @@ class Hooks
   {
     if (isset($this->filters[$tag]))
     {
-      if (false !== $priority && isset($this->filters[$tag][$priority]))
+      if (false !== $priority)
       {
-        unset($this->filters[$tag][$priority]);
+        if (isset($this->filters[$tag]['_'][$priority]))
+        {
+          unset($this->filters[$tag]['_'][$priority]);
+          if (empty($this->filters[$tag]['_']))
+          {
+            unset($this->filters[$tag]);
+          }
+        }
       }
       else
       {
@@ -187,7 +204,7 @@ class Hooks
    */
   public function has_filter($tag, $function_to_check = null)
   {
-    $has = !empty($this->filters[$tag]);
+    $has = isset($this->filters[$tag]) && !empty($this->filters[$tag]['_']);
     if ($function_to_check === null)
     {
       return $has;
@@ -198,15 +215,47 @@ class Hooks
       return false;
     }
 
-    foreach (array_keys($this->filters[$tag]) as $priority)
+    foreach (array_keys($this->filters[$tag]['_']) as $priority)
     {
-      if (isset($this->filters[$tag][$priority][$idx]))
+      if (isset($this->filters[$tag]['_'][$priority][$idx]))
       {
         return $priority;
       }
     }
 
     return false;
+  }
+
+  /**
+   * Disable a filter.
+   *
+   * @access public
+   * @since 0.4
+   *
+   * @param string   $tag      The name of the filter hook.
+   * @param callback $function Optional. Specific callback to disable.
+   * @param int      $priority Optional. Priority of the callback to disable.
+   * @return boolean If success.
+   */
+  public function disable_filter($tag, $function = null, $priority = self::PRIORITY_NEUTRAL)
+  {
+    return $this->__change_filter_state($tag, false, $function, $priority);
+  }
+
+  /**
+   * Enable a filter.
+   *
+   * @access public
+   * @since 0.4
+   *
+   * @param string   $tag      The name of the filter hook.
+   * @param callback $function Optional. Specific callback to enable.
+   * @param int      $priority Optional. Priority of the callback to enable.
+   * @return boolean If success.
+   */
+  public function enable_filter($tag, $function = null, $priority = self::PRIORITY_NEUTRAL)
+  {
+    return $this->__change_filter_state($tag, true, $function, $priority);
   }
 
   /**
@@ -222,7 +271,7 @@ class Hooks
    */
   public function apply_filters($tag, $value)
   {
-    if (!isset($this->filters[$tag]))
+    if (!$this->has_filter($tag) || !$this->filters[$tag]['enabled'])
     {
       return $value;
     }
@@ -233,9 +282,9 @@ class Hooks
     $this->__bump_action($tag, $args);
 
     do {
-      foreach (current($this->filters[$tag]) as $the_)
+      foreach (current($this->filters[$tag]['_']) as $the_)
       {
-        if (!is_null($the_['function']))
+        if (!is_null($the_['function']) && $the_['enabled'])
         {
           if (!is_null($the_['include_path']))
           {
@@ -247,7 +296,7 @@ class Hooks
         }
       }
     }
-    while (next($this->filters[$tag]) !== false);
+    while (next($this->filters[$tag]['_']) !== false);
 
     array_pop($this->filters_stack);
 
@@ -266,7 +315,7 @@ class Hooks
    */
   public function apply_filters_ref_array($tag, $args)
   {
-    if (!isset($this->filters[$tag]))
+    if (!$this->has_filter($tag) || !$this->filters[$tag]['enabled'])
     {
       return $args[0];
     }
@@ -275,9 +324,9 @@ class Hooks
 
     do
     {
-      foreach (current($this->filters[$tag]) as $the_)
+      foreach (current($this->filters[$tag]['_']) as $the_)
       {
-        if (!is_null($the_['function']))
+        if (!is_null($the_['function']) && $the_['enabled'])
         {
           if (!is_null($the_['include_path']))
           {
@@ -288,7 +337,7 @@ class Hooks
         }
       }
     }
-    while (next($this->filters[$tag]) !== false);
+    while (next($this->filters[$tag]['_']) !== false);
 
     array_pop($this->filters_stack);
 
@@ -312,11 +361,12 @@ class Hooks
    *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
    * @param string   $include_path    Optional. File to include before executing the callback.
+   * @param boolean  $enabled         Optional. State of the callback.
    * @return boolean true
    */
-  public function add_action($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null)
+  public function add_action($tag, $function_to_add, $priority = self::PRIORITY_NEUTRAL, $include_path = null, $enable = true)
   {
-    return $this->add_filter($tag, $function_to_add, $priority, $include_path);
+    return $this->add_filter($tag, $function_to_add, $priority, $include_path, $enable);
   }
 
   /**
@@ -332,7 +382,7 @@ class Hooks
    *   When using the $function_to_check argument, this function may return a non-boolean value that evaluates to false
    *   (e.g.) 0, so use the === operator for testing the return value.
    */
-  public function has_action($tag, $function_to_check = false)
+  public function has_action($tag, $function_to_check = null)
   {
     return $this->has_filter($tag, $function_to_check);
   }
@@ -369,6 +419,38 @@ class Hooks
   }
 
   /**
+   * Disable an action.
+   *
+   * @access public
+   * @since 0.4
+   *
+   * @param string   $tag      The name of the action hook.
+   * @param callback $function Optional. Specific callback to disable.
+   * @param int      $priority Optional. Priority of the callback to disable.
+   * @return boolean If success.
+   */
+  public function disable_action($tag, $function = null, $priority = self::PRIORITY_NEUTRAL)
+  {
+    return $this->disable_filter($tag, $function, $priority);
+  }
+
+  /**
+   * Enable an action.
+   *
+   * @access public
+   * @since 0.4
+   *
+   * @param string   $tag      The name of the action hook.
+   * @param callback $function Optional. Specific callback to enable.
+   * @param int      $priority Optional. Priority of the callback to enable.
+   * @return boolean If success.
+   */
+  public function enable_action($tag, $function = null, $priority = self::PRIORITY_NEUTRAL)
+  {
+    return $this->enable_filter($tag, $function, $priority);
+  }
+
+  /**
    * Execute functions hooked on a specific action hook.
    *
    * @access public
@@ -380,7 +462,7 @@ class Hooks
    */
   public function do_action($tag)
   {
-    if (!isset($this->filters[$tag]))
+    if (!$this->has_filter($tag) || !$this->filters[$tag]['enabled'])
     {
       return;
     }
@@ -392,9 +474,9 @@ class Hooks
 
     do
     {
-      foreach (current($this->filters[$tag]) as $the_)
+      foreach (current($this->filters[$tag]['_']) as $the_)
       {
-        if (!is_null($the_['function']))
+        if (!is_null($the_['function']) && $the_['enabled'])
         {
           if (!is_null($the_['include_path']))
           {
@@ -405,7 +487,7 @@ class Hooks
         }
       }
     }
-    while (next($this->filters[$tag]) !== false);
+    while (next($this->filters[$tag]['_']) !== false);
 
     array_pop($this->filters_stack);
   }
@@ -422,7 +504,7 @@ class Hooks
    */
   public function do_action_ref_array($tag, $args)
   {
-    if (!isset($this->filters[$tag]))
+    if (!$this->has_filter($tag) || !$this->filters[$tag]['enabled'])
     {
       return;
     }
@@ -431,9 +513,9 @@ class Hooks
 
     do
     {
-      foreach (current($this->filters[$tag]) as $the_)
+      foreach (current($this->filters[$tag]['_']) as $the_)
       {
-        if (!is_null($the_['function']))
+        if (!is_null($the_['function']) && $the_['enabled'])
         {
           if (!is_null($the_['include_path']))
           {
@@ -444,7 +526,7 @@ class Hooks
         }
       }
     }
-    while (next($this->filters[$tag]) !== false);
+    while (next($this->filters[$tag]['_']) !== false);
 
     array_pop($this->filters_stack);
   }
@@ -503,7 +585,7 @@ class Hooks
     {
       return !empty($this->filters_stack);
     }
-    
+
     foreach ($this->filters_stack as $stack)
     {
       if ($stack[0] == $filter)
@@ -613,7 +695,7 @@ class Hooks
             return false;
           }
 
-          $obj_idx.= isset($this->filters[$tag][$priority]) ? count((array)$this->filters[$tag][$priority]) : $filter_id_count;
+          $obj_idx.= isset($this->filters[$tag]['_'][$priority]) ? count((array)$this->filters[$tag]['_'][$priority]) : $filter_id_count;
           $function[0]->filter_id = $filter_id_count;
           ++$filter_id_count;
         }
@@ -674,7 +756,47 @@ class Hooks
       $this->filters_stack[] = array($tag);
     }
 
-    reset($this->filters[$tag]);
+    reset($this->filters[$tag]['_']);
+  }
+
+  /**
+   * Common function to change filter state.
+   *
+   * @access public
+   * @since 0.4
+   *
+   * @param string   $tag
+   * @param boolean  $state
+   * @param callback $function
+   * @param int      $priority
+   * @return boolean If success.
+   */
+  private function __change_filter_state($tag, $state, $function, $priority)
+  {
+    if (!$this->has_filter($tag))
+    {
+      return false;
+    }
+
+    if ($function === null)
+    {
+      $this->filters[$tag]['enabled'] = $state;
+
+      return true;
+    }
+    else
+    {
+      $idx = $this->__filter_build_unique_id($tag, $function, $priority);
+
+      if (isset($this->filters[$tag]['_'][$priority][$idx]))
+      {
+        $this->filters[$tag]['_'][$priority][$idx]['enabled'] = $state;
+
+        return true;
+      }
+    }
+
+    return false;
   }
 
 }
