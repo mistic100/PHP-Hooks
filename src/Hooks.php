@@ -49,14 +49,6 @@ class Hooks
   var $filters = array();
 
   /**
-   * $merged_filters
-   *
-   * @since 0.1
-   * @var array
-   */
-  var $merged_filters = array();
-
-  /**
    * Holds the hit counters of each action
    *
    * @since 0.1
@@ -71,6 +63,14 @@ class Hooks
    * @var array
    */
   var $filters_stack = array();
+  
+  /**
+   * Options
+   *
+   * @since 0.4
+   * @var array
+   */
+  var $options = array();
 
 
   /**
@@ -78,12 +78,15 @@ class Hooks
    * @access public
    * @since 0.1
    */
-  public function __construct($args = null)
+  public function __construct($options = array())
   {
     $this->filters = array();
-    $this->merged_filters = array();
     $this->actions_hits = array();
     $this->filters_stack = array();
+
+    $this->options = array_merge(array(
+      'detect_loops' => true
+    ), $options);
   }
 
 
@@ -114,7 +117,6 @@ class Hooks
       'include_path' => is_string($include_path) ? $include_path : null,
       );
 
-    unset($this->merged_filters[$tag]);
     return true;
   }
 
@@ -141,7 +143,6 @@ class Hooks
       {
         unset($this->filters[$tag][$priority]);
       }
-      unset($this->merged_filters[$tag]);
     }
 
     return $r;
@@ -168,11 +169,6 @@ class Hooks
       {
         unset($this->filters[$tag]);
       }
-    }
-
-    if (isset($this->merged_filters[$tag]))
-    {
-      unset($this->merged_filters[$tag]);
     }
   }
 
@@ -231,10 +227,10 @@ class Hooks
       return $value;
     }
 
-    $this->__bump_action($tag);
-
     $args = func_get_args();
     array_shift($args);
+
+    $this->__bump_action($tag, $args);
 
     do {
       foreach (current($this->filters[$tag]) as $the_)
@@ -275,7 +271,7 @@ class Hooks
       return $args[0];
     }
 
-    $this->__bump_action($tag);
+    $this->__bump_action($tag, $args);
 
     do
     {
@@ -389,10 +385,10 @@ class Hooks
       return;
     }
 
-    $this->__bump_action($tag);
-
     $args = func_get_args();
     array_shift($args);
+
+    $this->__bump_action($tag, $args);
 
     do
     {
@@ -431,7 +427,7 @@ class Hooks
       return;
     }
 
-    $this->__bump_action($tag);
+    $this->__bump_action($tag, $args);
 
     do
     {
@@ -507,8 +503,16 @@ class Hooks
     {
       return !empty($this->filters_stack);
     }
+    
+    foreach ($this->filters_stack as $stack)
+    {
+      if ($stack[0] == $filter)
+      {
+        return true;
+      }
+    }
 
-    return in_array($filter, $this->filters_stack);
+    return false;
   }
 
   /**
@@ -638,8 +642,9 @@ class Hooks
    * @access private
    *
    * @param string $tag
+   * @param array $args
    */
-  private function __bump_action($tag)
+  private function __bump_action($tag, $args)
   {
     if (!isset($this->actions_hits[$tag]))
     {
@@ -650,12 +655,23 @@ class Hooks
       ++$this->actions_hits[$tag];
     }
 
-    $this->filters_stack[] = $tag;
-
-    if (!isset($this->merged_filters[$tag]))
+    if ($this->options['detect_loops'])
     {
-      ksort($this->filters[$tag]);
-      $this->merged_filters[$tag] = true;
+      $args_hash = md5(json_encode($args));
+
+      foreach ($this->filters_stack as $stack)
+      {
+        if ($stack[0] == $tag && $stack[1] = $args_hash)
+        {
+          throw new \Exception(get_class() . ': recursive nested hook detected');
+        }
+      }
+
+      $this->filters_stack[] = array($tag, $args_hash);
+    }
+    else
+    {
+      $this->filters_stack[] = array($tag);
     }
 
     reset($this->filters[$tag]);
