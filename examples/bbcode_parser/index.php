@@ -1,7 +1,6 @@
 <?php
 
 include 'BBCodeParser.class.php';
-
 $bbcode = new BBCodeParser();
 
 $default_content = 
@@ -37,7 +36,6 @@ int main() {
 [img=300]http://www.w3.org/html/logo/img/html5-display.png[/img]';
 
 $content = isset($_POST['content']) ? $_POST['content'] : $default_content;
-
 $parsed_content = $bbcode->parse($content);
 
 ?>
@@ -47,7 +45,7 @@ $parsed_content = $bbcode->parse($content);
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   
-  <title>Bootstrap 101 Template</title>
+  <title>PHP Shortcodes</title>
 
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
 </head>

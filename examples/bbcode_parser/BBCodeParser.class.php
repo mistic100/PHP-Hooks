@@ -1,7 +1,6 @@
 <?php
 
 include '../../src/Shortcodes.php';
-
 use \Hooks\Shortcodes;
 
 /**
