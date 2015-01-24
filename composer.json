@@ -9,20 +9,23 @@
     ],
     "homepage": "https://github.com/mistic100/PHP-Hooks/",
     "license": "GNU General Public License v3.0",
-    "authors": [
-        {
-            "name": "Ohad Raz",
-            "homepage": "http://en.bainternet.info/"
-        },
-        {
-            "name": "Damien \"Mistic\" Sorel",
-            "email": "contact@git.strangeplanet.fr",
-            "homepage": "http://www.strangeplanet.fr/"
-        }
-    ],
+    "authors": [{
+        "name": "Ohad Raz",
+        "homepage": "http://en.bainternet.info/"
+    },{
+        "name": "Damien \"Mistic\" Sorel",
+        "email": "contact@git.strangeplanet.fr",
+        "homepage": "http://www.strangeplanet.fr/"
+    }],
+    "require-dev": {
+        "phpunit/phpunit": "4.4.*"
+    },
     "autoload": {
         "psr-4": {
             "Hooks\\": "src"
         }
+    },
+    "scripts": {
+        "test": "phpunit --bootstrap vendor/autoload.php tests"
     }
 }
