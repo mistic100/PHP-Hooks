@@ -41,6 +41,19 @@ class HooksTest extends PHPUnit_Framework_TestCase
     $this->assertEquals(self::$hooks->apply_filters('foo', $content), '<b>Hello world</b>');
   }
   
+  public function testMultipleFiltersAndPriority()
+  {
+
+    // Lower priority should be executed first.
+    $content = 'Hello world';
+
+    self::$hooks->add_filter('html', function($content) { return '<b>' . $content . '</b>'; }, 20);
+    self::$hooks->add_filter('html', function($content) { return '<i>' . $content . '</i>'; }, 10);
+
+    $retval = self::$hooks->apply_filters('html', $content);
+    $this->assertEquals($retval, '<b><i>Hello world</i></b>');
+  }
+
   /**
    * @expectedException              \Exception
    * @expectedExceptionMessageRegExp /.* recursive nested hook detected/
