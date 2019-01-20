@@ -127,6 +127,7 @@ class Hooks
       'enabled' => $enabled
       );
 
+    asort($this->filters[$tag]['_']);
     return true;
   }
 
