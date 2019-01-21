@@ -53,23 +53,22 @@ class HooksTest extends PHPUnit_Framework_TestCase
   public function testMultipleArgumentsToFilter()
   {
 
-    $this->hooks->add_filter('html', function($tag, $name) { return ["a:$tag", "a:$name"]; }, 20);
-    //self::$hooks->add_filter('html', function($tag, $name) { return ["b:$tag", "b:$name"]; }, 10);
+    $this->hooks->add_filter('html', function($arg1, $extra, $args) { return 'arg1' . $extra . $args; });
 
-    $retval = $this->hooks->apply_filters('html', 'arg1', 'arg2');
+    $retval = $this->hooks->apply_filters('html', 'arg1', 'extra', 'args');
 
-    $this->assertEquals($retval, ['a:arg1', 'a:arg2']);
+    $this->assertEquals($retval, 'arg1extraargs');
   }
 
   public function testMultipleFiltersMultipleArguments()
   {
 
-    $this->hooks->add_filter('html', function($tag, $name) {  return ["a:$tag", "a:$name"]; }, 20);
-    $this->hooks->add_filter('html', function($tag, $name) {  return ["b:$tag", "b:$name"]; }, 10);
+    $this->hooks->add_filter('html', function($arg1, $arg2) {  return "a[{$arg1}:{$arg2}]"; }, 20);
+    $this->hooks->add_filter('html', function($arg1, $arg2) {  return "b({$arg1}:{$arg2})"; }, 10);
 
     $retval = $this->hooks->apply_filters('html', 'arg1', 'arg2');
 
-    $this->assertEquals($retval, ['a:b:arg1', 'a:b:arg2']);
+    $this->assertEquals($retval, 'a[b(arg1:arg2):arg2]');
   }
   /**
    * @expectedException              \Exception
