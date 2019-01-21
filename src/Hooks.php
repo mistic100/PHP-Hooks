@@ -127,6 +127,9 @@ class Hooks
       'enabled' => $enabled
       );
 
+
+    ksort($this->filters[$tag]['_']);
+
     return true;
   }
 

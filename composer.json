@@ -26,6 +26,6 @@
         }
     },
     "scripts": {
-        "test": "phpunit --bootstrap vendor/autoload.php tests"
+        "test": "@php vendor/bin/phpunit --bootstrap vendor/autoload.php tests"
     }
 }
