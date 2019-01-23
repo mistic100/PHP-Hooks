@@ -498,7 +498,7 @@ class Shortcodes
       return $content;
     }
 
-    $pattern = $this->get_shortcode_regex();
+    $pattern = $this->__get_shortcode_regex();
 
     return preg_replace_callback(
       "/$pattern/s",
