@@ -101,7 +101,7 @@ class Hooks
    * @since 0.1
    *
    * @param string   $tag             The name of the filter to hook the $function_to_add to.
-   * @param callback $function_to_add The name of the function to be called when the filter is applied.
+   * @param callable $function_to_add The name of the function to be called when the filter is applied.
    * @param int      $priority        Optional. Used to specify the order in which the functions associated with
    *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
@@ -140,7 +140,7 @@ class Hooks
    * @since 0.1
    *
    * @param string   $tag                The filter hook to which the function to be removed is hooked.
-   * @param callback $function_to_remove The name of the function which should be removed.
+   * @param callable $function_to_remove The name of the function which should be removed.
    * @param int      $priority           Optional. The priority of the function (default: 50).
    * @return boolean Whether the function existed before it was removed.
    */
@@ -168,7 +168,7 @@ class Hooks
    * @since 0.1
    *
    * @param string $tag      The filter to remove hooks from.
-   * @param int    $priority The priority number to remove.
+   * @param int|bool    $priority The priority number to remove.
    */
   public function remove_all_filters($tag, $priority = false)
   {
@@ -199,7 +199,7 @@ class Hooks
    * @since 0.1
    *
    * @param string   $tag               The name of the filter hook.
-   * @param callback $function_to_check Optional.
+   * @param callable $function_to_check Optional.
    * @return mixed If $function_to_check is omitted, returns boolean for whether the hook has anything registered.
    *   When checking a specific function, the priority of that hook is returned, or false if the function is not attached.
    *   When using the $function_to_check argument, this function may return a non-boolean value that evaluates to false
@@ -236,7 +236,7 @@ class Hooks
    * @since 0.4
    *
    * @param string   $tag      The name of the filter hook.
-   * @param callback $function Optional. Specific callback to disable.
+   * @param callable $function Optional. Specific callback to disable.
    * @param int      $priority Optional. Priority of the callback to disable.
    * @return boolean If success.
    */
@@ -252,7 +252,7 @@ class Hooks
    * @since 0.4
    *
    * @param string   $tag      The name of the filter hook.
-   * @param callback $function Optional. Specific callback to enable.
+   * @param callable $function Optional. Specific callback to enable.
    * @param int      $priority Optional. Priority of the callback to enable.
    * @return boolean If success.
    */
@@ -359,7 +359,7 @@ class Hooks
    * @since 0.1
    *
    * @param string   $tag             The name of the action to which the $function_to_add is hooked.
-   * @param callback $function_to_add The name of the function you wish to be called.
+   * @param callable $function_to_add The name of the function you wish to be called.
    * @param int      $priority        Optional. Used to specify the order in which the functions associated with
    *    a particular action are executed (default: 50). Lower numbers correspond with earlier execution,
    *    and functions with the same priority are executed in the order in which they were added to the action.
@@ -379,7 +379,7 @@ class Hooks
    * @since 0.1
    *
    * @param string   $tag               The name of the action hook.
-   * @param callback $function_to_check Optional.
+   * @param callable $function_to_check Optional.
    * @return mixed If $function_to_check is omitted, returns boolean for whether the hook has anything registered.
    *   When checking a specific function, the priority of that hook is returned, or false if the function is not attached.
    *   When using the $function_to_check argument, this function may return a non-boolean value that evaluates to false
@@ -397,7 +397,7 @@ class Hooks
    * @since 0.1
    *
    * @param string   $tag                The action hook to which the function to be removed is hooked.
-   * @param callback $function_to_remove The name of the function which should be removed.
+   * @param callable $function_to_remove The name of the function which should be removed.
    * @param int      $priority           Optional. The priority of the function (default: 50).
    * @return boolean Whether the function is removed.
    */
@@ -413,7 +413,7 @@ class Hooks
    * @since 0.1
    *
    * @param string $tag      The action to remove hooks from.
-   * @param int    $priority The priority number to remove them from.
+   * @param int|bool    $priority The priority number to remove them from.
    * @return bool True when finished.
    */
   public function remove_all_actions($tag, $priority = false)
@@ -428,7 +428,7 @@ class Hooks
    * @since 0.4
    *
    * @param string   $tag      The name of the action hook.
-   * @param callback $function Optional. Specific callback to disable.
+   * @param callable $function Optional. Specific callback to disable.
    * @param int      $priority Optional. Priority of the callback to disable.
    * @return boolean If success.
    */
@@ -444,7 +444,7 @@ class Hooks
    * @since 0.4
    *
    * @param string   $tag      The name of the action hook.
-   * @param callback $function Optional. Specific callback to enable.
+   * @param callable $function Optional. Specific callback to enable.
    * @param int      $priority Optional. Priority of the callback to enable.
    * @return boolean If success.
    */
@@ -461,7 +461,7 @@ class Hooks
    *
    * @param string $tag     The name of the action to be executed.
    * @param mixed  $arg,... Optional additional arguments which are passed on to the functions hooked to the action.
-   * @return null Will return null if $tag does not exist in $filter array
+   * @return void Will return null if $tag does not exist in $filter array
    */
   public function do_action($tag)
   {
@@ -503,7 +503,7 @@ class Hooks
    *
    * @param string $tag The name of the action to be executed.
    * @param array $args The arguments supplied to the functions hooked to <tt>$tag</tt>
-   * @return null Will return null if $tag does not exist in $filter array
+   * @return void Will return null if $tag does not exist in $filter array
    */
   public function do_action_ref_array($tag, $args)
   {
@@ -655,7 +655,7 @@ class Hooks
    * @access private
    *
    * @param string   $tag      Used in counting how many hooks were applied
-   * @param callback $function Used for creating unique id
+   * @param callable $function Used for creating unique id
    * @param int|bool $priority Used in counting how many hooks were applied. If === false and $function
    *    is an object reference, we return the unique id only if it already has one, false otherwise.
    * @return string|bool Unique ID for usage as array key or false if $priority === false and $function
@@ -715,6 +715,7 @@ class Hooks
       // Static Calling
       return $function[0].$function[1];
     }
+    return false;
   }
 
   /**
@@ -770,7 +771,7 @@ class Hooks
    *
    * @param string   $tag
    * @param boolean  $state
-   * @param callback $function
+   * @param callable|null $function
    * @param int      $priority
    * @return boolean If success.
    */
