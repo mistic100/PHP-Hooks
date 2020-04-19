@@ -30,8 +30,16 @@ class HooksTest extends \PHPUnit\Framework\TestCase
   public function testFilter()
   {
     $content = 'Hello world';
-    
+
+    $this->assertFalse($this->hooks->doing_filter());
+    $this->assertNull($this->hooks->current_filter());
+
     $this->hooks->add_filter('foo', function($content) {
+
+      $stuff = $this->hooks->current_filter();
+      $this->assertEquals('foo', $stuff);
+ 
+      $this->assertTrue($this->hooks->doing_filter('foo'));
       return '<b>' . $content . '</b>';
     });
     
@@ -83,11 +91,32 @@ class HooksTest extends \PHPUnit\Framework\TestCase
     $this->hooks->add_action('bar', function() {
       $this->hooks->do_action('foo');
     });
-    
+
+    $this->assertTrue($this->hooks->has_action('foo'));
+    $this->assertTrue($this->hooks->has_action('bar'));
     $this->hooks->do_action('foo');
   }
-  
-  public function testRemoveHandler()
+
+  public function testRemoveAllFilters() 
+  {
+
+    $this->hooks->add_filter('foo', function($var) { return ( $var + 1); }, 10);
+    $this->hooks->add_filter('foo', function($var) { return ( $var * 10); }, 20);
+
+    $init = 1;
+    $init = $this->hooks->apply_filters('foo', $init);
+
+    $this->assertEquals(20, $init); /* ( 1 + 1 )  * 10 */
+    $this->hooks->remove_all_filters('foo', 10);
+
+
+    $init = 1;
+    $init = $this->hooks->apply_filters('foo', $init);
+    $this->assertEquals(10, $init);
+  }  
+
+
+  public function testRemoveAction()
   {
     $done = false;
     
@@ -100,12 +129,15 @@ class HooksTest extends \PHPUnit\Framework\TestCase
     
     $this->hooks->do_action('foo');
     $this->assertFalse($done);
+
   }
   
-  public function testDisableHandler()
+  public function testDisableAction()
   {
     $done = false;
-    
+
+    $this->assertEquals(0, $this->hooks->did_action('foo'));
+
     $do = function() use(&$done) {
       $done = !$done;
     };
@@ -114,6 +146,7 @@ class HooksTest extends \PHPUnit\Framework\TestCase
     $this->hooks->disable_action('foo', $do);
     
     $this->hooks->do_action('foo');
+    $this->assertEquals(1, $this->hooks->did_action('foo'));
     $this->assertFalse($done);
     
     $this->hooks->enable_action('foo', $do);
