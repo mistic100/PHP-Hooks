@@ -2,7 +2,7 @@
 
 use Hooks\Hooks;
 
-class HooksTest extends PHPUnit_Framework_TestCase
+class HooksTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var Hooks
