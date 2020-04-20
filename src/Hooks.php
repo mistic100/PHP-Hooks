@@ -545,11 +545,16 @@ class Hooks
    * @access public
    * @since 0.1
    *
-   * @return string Hook name of the current filter or action.
+   * @return ?string Hook name of the current filter or action.
    */
   public function current_filter()
   {
-    return end($this->filters_stack);
+    // filters_stack contains a list of ($name, $id) 
+    $end = end($this->filters_stack);
+    if(is_array($end)) {
+        return $end[0]; 
+    }
+    return null;
   }
 
   /**
@@ -558,7 +563,7 @@ class Hooks
    * @access public
    * @since 0.1.2
    *
-   * @return string Hook name of the current action.
+   * @return ?string Hook name of the current action.
    */
   public function current_action()
   {
